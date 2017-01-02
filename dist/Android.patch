@@ -1,45 +1,73 @@
 diff -r -u -d orig/shell.c ./shell.c
---- orig/shell.c	2016-11-28 11:29:24.000000000 -0800
-+++ ./shell.c	2016-12-05 19:22:01.753993203 -0800
-@@ -53,6 +53,13 @@
+--- orig/shell.c	2017-01-02 14:33:34.000000000 -0800
++++ ./shell.c	2017-01-02 14:33:35.000000000 -0800
+@@ -52,6 +52,12 @@
+ #endif
  #include <ctype.h>
  #include <stdarg.h>
- 
 +// Begin Android Add
 +#ifndef NO_ANDROID_FUNCS
 +#include "IcuUtils.h"
 +#include <sqlite3_android.h>
 +#endif
 +// End Android Add
-+
+ 
  #if !defined(_WIN32) && !defined(WIN32)
  # include <signal.h>
- # if !defined(__RTP__) && !defined(_WRS_KERNEL)
-@@ -2395,6 +2402,20 @@
+@@ -2442,6 +2448,22 @@
                              readfileFunc, 0, 0);
      sqlite3_create_function(p->db, "writefile", 2, SQLITE_UTF8, 0,
                              writefileFunc, 0, 0);
-+// Begin Android Add
-+#ifndef NO_ANDROID_FUNCS
-+    InitializeIcuOrDie();
-+    int err = register_localized_collators(p->db, "en_US", 0);
-+    if (err != SQLITE_OK) {
-+      fprintf(stderr, "register_localized_collators() failed\n");
-+      exit(1);
-+    }
-+    err = register_android_functions(p->db, 0);
-+    if (err != SQLITE_OK) {
-+      fprintf(stderr, "register_android_functions() failed\n");
-+      exit(1);
-+    }
-+#endif
++
++    // Begin Android Add
++    #ifndef NO_ANDROID_FUNCS
++        InitializeIcuOrDie();
++        int err = register_localized_collators(p->db, "en_US", 0);
++        if (err != SQLITE_OK) {
++          fprintf(stderr, "register_localized_collators() failed\n");
++          exit(1);
++        }
++        err = register_android_functions(p->db, 0);
++        if (err != SQLITE_OK) {
++          fprintf(stderr, "register_android_functions() failed\n");
++          exit(1);
++        }
++    #endif
++    // End Android Add
    }
  }
  
 diff -r -u -d orig/sqlite3.c ./sqlite3.c
---- orig/sqlite3.c	2016-11-28 11:29:24.000000000 -0800
-+++ ./sqlite3.c	2016-12-06 20:41:44.817184190 -0800
-@@ -49879,15 +49879,9 @@
+--- orig/sqlite3.c	2017-01-02 14:33:35.000000000 -0800
++++ ./sqlite3.c	2017-01-02 14:37:52.757879756 -0800
+@@ -33329,7 +33329,7 @@
+   SimulateIOError( rc=1 );
+   if( rc!=0 ){
+     storeLastErrno((unixFile*)id, errno);
+-    return SQLITE_IOERR_FSTAT;
++    return unixLogError(SQLITE_IOERR_FSTAT, "fstat", ((unixFile*)id)->zPath);
+   }
+   *pSize = buf.st_size;
+ 
+@@ -33365,7 +33365,7 @@
+     struct stat buf;              /* Used to hold return values of fstat() */
+    
+     if( osFstat(pFile->h, &buf) ){
+-      return SQLITE_IOERR_FSTAT;
++      return unixLogError(SQLITE_IOERR_FSTAT, "fstat", pFile->zPath);
+     }
+ 
+     nSize = ((nByte+pFile->szChunk-1) / pFile->szChunk) * pFile->szChunk;
+@@ -33939,7 +33939,7 @@
+     ** with the same permissions.
+     */
+     if( osFstat(pDbFd->h, &sStat) ){
+-      rc = SQLITE_IOERR_FSTAT;
++      rc = unixLogError(SQLITE_IOERR_FSTAT, "fstat", pDbFd->zPath);
+       goto shm_open_err;
+     }
+ 
+@@ -50212,15 +50212,9 @@
    unsigned pgFlags      /* Various flags */
  ){
    unsigned level = pgFlags & PAGER_SYNCHRONOUS_MASK;
@@ -58,10 +86,11 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    if( pPager->noSync ){
      pPager->syncFlags = 0;
      pPager->ckptSyncFlags = 0;
-@@ -51184,19 +51178,12 @@
+@@ -51525,20 +51519,12 @@
+   pPager->memDb = (u8)memDb;
    pPager->readOnly = (u8)readOnly;
    assert( useJournal || pPager->tempFile );
-   pPager->noSync = pPager->tempFile;
+-  pPager->noSync = pPager->tempFile;
 -  if( pPager->noSync ){
 -    assert( pPager->fullSync==0 );
 -    assert( pPager->extraSync==0 );
@@ -84,7 +113,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    /* pPager->pFirst = 0; */
    /* pPager->pFirstSynced = 0; */
    /* pPager->pLast = 0; */
-@@ -97613,7 +97600,7 @@
+@@ -98160,7 +98146,7 @@
  #endif
      sqlite3BtreeLeave(aNew->pBt);
    }
@@ -93,3 +122,47 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    aNew->zDbSName = sqlite3DbStrDup(db, zName);
    if( rc==SQLITE_OK && aNew->zDbSName==0 ){
      rc = SQLITE_NOMEM_BKPT;
+@@ -114815,7 +114801,7 @@
+   }
+   if( pDb->pSchema->file_format>SQLITE_MAX_FILE_FORMAT ){
+     sqlite3SetString(pzErrMsg, db, "unsupported file format");
+-    rc = SQLITE_ERROR;
++    rc = SQLITE_CORRUPT_BKPT; // Android Change from "rc = SQLITE_ERROR;";
+     goto initone_error_out;
+   }
+ 
+@@ -141859,7 +141845,7 @@
+   ** database it is OFF. This matches the pager layer defaults.  
+   */
+   db->aDb[0].zDbSName = "main";
+-  db->aDb[0].safety_level = SQLITE_DEFAULT_SYNCHRONOUS+1;
++  db->aDb[0].safety_level = 1;
+   db->aDb[1].zDbSName = "temp";
+   db->aDb[1].safety_level = PAGER_SYNCHRONOUS_OFF;
+ 
+@@ -148155,13 +148141,25 @@
+   ** module with sqlite.
+   */
+   if( SQLITE_OK==rc 
++#ifndef ANDROID    /* fts3_tokenizer disabled for security reasons */
+    && SQLITE_OK==(rc = sqlite3Fts3InitHashTable(db, pHash, "fts3_tokenizer"))
++#endif
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "snippet", -1))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "offsets", 1))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "matchinfo", 1))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "matchinfo", 2))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "optimize", 1))
+   ){
++#ifdef SQLITE_ENABLE_FTS3_BACKWARDS
++    rc = sqlite3_create_module_v2(
++        db, "fts1", &fts3Module, (void *)pHash, 0
++        );
++    if(rc) return rc;
++    rc = sqlite3_create_module_v2(
++        db, "fts2", &fts3Module, (void *)pHash, 0
++        );
++    if(rc) return rc;
++#endif
+     rc = sqlite3_create_module_v2(
+         db, "fts3", &fts3Module, (void *)pHash, hashDestroy
+     );
