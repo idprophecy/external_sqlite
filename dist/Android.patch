@@ -1,6 +1,6 @@
 diff -r -u -d orig/shell.c ./shell.c
---- orig/shell.c	2017-01-02 14:33:34.000000000 -0800
-+++ ./shell.c	2017-01-02 14:33:35.000000000 -0800
+--- orig/shell.c	2017-01-03 10:36:59.000000000 -0800
++++ ./shell.c	2017-01-03 20:00:55.000000000 -0800
 @@ -52,6 +52,12 @@
  #endif
  #include <ctype.h>
@@ -38,8 +38,8 @@ diff -r -u -d orig/shell.c ./shell.c
  }
  
 diff -r -u -d orig/sqlite3.c ./sqlite3.c
---- orig/sqlite3.c	2017-01-02 14:33:35.000000000 -0800
-+++ ./sqlite3.c	2017-01-02 14:37:52.757879756 -0800
+--- orig/sqlite3.c	2017-01-03 10:36:59.000000000 -0800
++++ ./sqlite3.c	2017-01-03 20:05:04.479044739 -0800
 @@ -33329,7 +33329,7 @@
    SimulateIOError( rc=1 );
    if( rc!=0 ){
@@ -113,7 +113,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    /* pPager->pFirst = 0; */
    /* pPager->pFirstSynced = 0; */
    /* pPager->pLast = 0; */
-@@ -98160,7 +98146,7 @@
+@@ -98204,7 +98190,7 @@
  #endif
      sqlite3BtreeLeave(aNew->pBt);
    }
@@ -122,7 +122,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    aNew->zDbSName = sqlite3DbStrDup(db, zName);
    if( rc==SQLITE_OK && aNew->zDbSName==0 ){
      rc = SQLITE_NOMEM_BKPT;
-@@ -114815,7 +114801,7 @@
+@@ -114859,7 +114845,7 @@
    }
    if( pDb->pSchema->file_format>SQLITE_MAX_FILE_FORMAT ){
      sqlite3SetString(pzErrMsg, db, "unsupported file format");
@@ -131,7 +131,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
      goto initone_error_out;
    }
  
-@@ -141859,7 +141845,7 @@
+@@ -141903,7 +141889,7 @@
    ** database it is OFF. This matches the pager layer defaults.  
    */
    db->aDb[0].zDbSName = "main";
@@ -140,7 +140,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    db->aDb[1].zDbSName = "temp";
    db->aDb[1].safety_level = PAGER_SYNCHRONOUS_OFF;
  
-@@ -148155,13 +148141,25 @@
+@@ -148199,13 +148185,25 @@
    ** module with sqlite.
    */
    if( SQLITE_OK==rc 
