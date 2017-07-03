@@ -47,6 +47,10 @@ LOCAL_SRC_FILES := $(common_src_files)
 
 LOCAL_CFLAGS += $(device_sqlite_flags)
 
+LOCAL_SDCLANG := false
+
+LOCAL_CLANG := false
+
 LOCAL_SHARED_LIBRARIES := libdl
 
 LOCAL_MODULE:= libsqlite
@@ -87,6 +91,10 @@ ifneq ($(SDK_ONLY),true)  # SDK doesn't need device version of sqlite3
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := shell.c
+
+LOCAL_SDCLANG := false
+
+LOCAL_CLANG := false
 
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/../android \
