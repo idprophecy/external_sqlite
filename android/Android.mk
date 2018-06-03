@@ -10,6 +10,7 @@ libsqlite3_android_c_includes := external/sqlite/dist
 include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= $(libsqlite3_android_local_src_files)
 LOCAL_C_INCLUDES += $(libsqlite3_android_c_includes)
+LOCAL_SDCLANG_LTO := true
 LOCAL_STATIC_LIBRARIES := liblog
 LOCAL_SHARED_LIBRARIES := libicuuc libicui18n
 LOCAL_MODULE:= libsqlite3_android
